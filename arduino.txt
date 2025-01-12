@@ -1,0 +1,97 @@
+#include <Servo.h>
+
+// Servo objects
+Servo servo1;
+Servo servo2;
+Servo servo3;
+Servo servo4;
+
+// Servo pin assignments
+int servo1Pin = 3;
+int servo3Pin = 5;
+int servo4Pin = 6;
+int servo2Pin = 9;
+
+// Timer variables
+unsigned long lastOpenTime = 0;
+unsigned long stayOpenDuration = 5000; // Time (in milliseconds) to keep the bin fully open
+unsigned long partiallyOpenDuration = 2000; // Time (in milliseconds) to keep the bin partially open
+
+// Track the currently open bin (-1 means no bin is open)
+int currentOpenBin = -1;
+
+void setup() {
+    Serial.begin(9600);
+
+    // Attach servos to pins
+    servo1.attach(servo1Pin);
+    servo2.attach(servo2Pin);
+    servo3.attach(servo3Pin);
+    servo4.attach(servo4Pin);
+
+    // Ensure all bins are closed at the start
+    closeAllBins();
+}
+
+void loop() {
+    // Handle serial communication for bin commands
+    if (Serial.available() > 0) {
+        int classId = Serial.parseInt(); // Read the class ID as an integer
+        Serial.print("Received Class ID: ");
+        Serial.println(classId);
+
+        // If a new bin is detected or the "close all" (-1) command is received
+        if (classId != currentOpenBin) {
+            if (classId == -1) {
+                closeAllBins();
+                currentOpenBin = -1; // No bin is open
+            } else if (classId >= 1 && classId <= 4) {
+                openBin(classId);
+                lastOpenTime = millis(); // Record the time the bin was opened
+                currentOpenBin = classId; // Update the currently open bin
+            }
+        }
+    }
+
+    // Automatically close the bin after the full open duration
+    if (currentOpenBin != -1 && millis() - lastOpenTime >= stayOpenDuration) {
+        closePartiallyBin(currentOpenBin); // Keep the bin partially open
+        delay(partiallyOpenDuration);     // Wait for the partially open duration
+        closeAllBins();                   // Fully close the bin
+        currentOpenBin = -1;              // Reset to no bin open
+    }
+}
+
+// Function to open a specific bin
+void openBin(int binId) {
+    closeAllBins(); // Ensure all other bins are closed
+    switch (binId) {
+        case 1: servo1.write(50); break; // Fully open angle
+        case 2: servo2.write(50); break;
+        case 3: servo3.write(50); break;
+        case 4: servo4.write(50); break;
+    }
+    Serial.print("Opened bin: ");
+    Serial.println(binId);
+}
+
+// Function to close all bins
+void closeAllBins() {
+    servo1.write(10);
+    servo2.write(10);
+    servo3.write(10);
+    servo4.write(10);
+    Serial.println("Closed all bins.");
+}
+
+// Function to keep a bin partially open
+void closePartiallyBin(int binId) {
+    switch (binId) {
+        case 1: servo1.write(50); break; // Partially open angle
+        case 2: servo2.write(50); break;
+        case 3: servo3.write(50); break;
+        case 4: servo4.write(50); break;
+    }
+    Serial.print("Partially closed bin: ");
+    Serial.println(binId);
+}
